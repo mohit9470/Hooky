@@ -1,4 +1,17 @@
+<div align="center">
+
+<img src="assets/hooky-icon.svg" alt="Hooky - Simple Cross-Platform Security Auditing" width="160">
+
 # Hooky — Simple Cross-Platform Security Audit & Reporting Toolkit
+
+**Read-only security auditing for Linux & Windows — with an interactive menu,
+60 + 29 checks and HTML / PDF / JSON / CSV reports.**
+
+`python3 hooky.py` · MIT License · Python 3.8+, stdlib only
+
+</div>
+
+---
 
 **Hooky** is a read-only security auditor with a **zero-memorisation
 interactive menu**. Run it, and it asks what you want to do:
@@ -245,6 +258,11 @@ The **JSON/CSV** payloads carry the same data for SIEM pipelines and Excel.
 - **Authorisation:** only audit systems you own or are authorised to assess.
   Hooky is read-only and safe for production.
 
+## License
+
+[MIT](LICENSE) — free to use, modify and distribute; provided "as is" with no
+warranty. Only audit systems you own or are explicitly authorised to test.
+
 ## Project layout
 
 ```
@@ -270,7 +288,10 @@ hooky/
 │   ├── report_html.py         # self-contained interactive HTML dashboard
 │   └── report_pdf.py          # formal PDF report (ReportLab)
 ├── requirements.txt
-└── README.md
+├── LICENSE                 # MIT
+├── README.md
+└── assets/
+    └── hooky-icon.svg       # project icon
 ```
 
 Extending Hooky with your own check is one function:
