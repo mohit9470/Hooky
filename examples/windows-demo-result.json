@@ -1,0 +1,458 @@
+{
+  "schema": "hooky-agent/1",
+  "agent_version": "1.3.0",
+  "collected_at": "2026-11-09 10:00:00 UTC",
+  "computer": "WIN-DEMO-SRV01",
+  "os_family": "Windows",
+  "elevated": true,
+  "ps_version": "5.1.20348.2849",
+  "collectors": {
+    "system": {
+      "ok": true,
+      "error": null,
+      "data": {
+        "computer_name": "WIN-DEMO-SRV01",
+        "domain": "corp.demo.local",
+        "part_of_domain": true,
+        "manufacturer": "Dell Inc.",
+        "model": "PowerEdge R750",
+        "os_caption": "Microsoft Windows Server 2022 Standard",
+        "os_version": "10.0.20348",
+        "os_arch": "64-bit",
+        "build_number": "20348",
+        "ubr": 2849,
+        "display_version": "21H2",
+        "install_date": "2024-03-15",
+        "last_boot": "2026-10-30 08:14:22",
+        "secure_boot": 1,
+        "cpu": "Intel(R) Xeon(R) Gold 6338 CPU @ 2.00GHz",
+        "cpu_count": 32,
+        "memory_gb": 128.0,
+        "pending_reboot": {
+          "cbs_reboot_pending": true,
+          "wu_reboot_required": false,
+          "pending_file_rename": true
+        }
+      }
+    },
+    "net_accounts": {
+      "ok": true,
+      "error": null,
+      "data": {
+        "raw": [
+          "The command completed successfully.",
+          "",
+          "Minimum password length:            0",
+          "Maximum password age:               180 days",
+          "Minimum password age:               1 day",
+          "Length of password history maintained:   1",
+          "Lockout threshold:                  Never",
+          "Lockout duration:                   30 minutes",
+          "Lockout observation window:         30 minutes",
+          "Computer role:                      WORKSTATION"
+        ],
+        "parsed": {
+          "Minimum password length": "0",
+          "Maximum password age": "180 days",
+          "Minimum password age": "1 day",
+          "Length of password history maintained": "1",
+          "Lockout threshold": "Never",
+          "Lockout duration": "30 minutes",
+          "Lockout observation window": "30 minutes",
+          "Computer role": "WORKSTATION"
+        }
+      }
+    },
+    "local_users": {
+      "ok": true,
+      "error": null,
+      "data": {
+        "users": [
+          {
+            "name": "Administrator",
+            "enabled": true,
+            "password_required": false,
+            "password_expires": null,
+            "last_logon": "2026-11-01 21:03",
+            "sid": "S-1-5-21-1004336348-500"
+          },
+          {
+            "name": "Guest",
+            "enabled": true,
+            "password_required": false,
+            "password_expires": null,
+            "last_logon": "never",
+            "sid": "S-1-5-21-1004336348-501"
+          },
+          {
+            "name": "defaultuser0",
+            "enabled": false,
+            "password_required": true,
+            "password_expires": "2024-06-13",
+            "last_logon": "never",
+            "sid": "S-1-5-21-1004336348-1000"
+          },
+          {
+            "name": "jdoe",
+            "enabled": true,
+            "password_required": true,
+            "password_expires": "2027-01-02",
+            "last_logon": "2026-11-08 09:41",
+            "sid": "S-1-5-21-1004336348-1001"
+          },
+          {
+            "name": "svc_sql",
+            "enabled": true,
+            "password_required": true,
+            "password_expires": null,
+            "last_logon": "2026-11-09 04:12",
+            "sid": "S-1-5-21-1004336348-1002"
+          }
+        ],
+        "groups": {
+          "Administrators": [
+            {
+              "name": "WIN-DEMO-SRV01\\Administrator",
+              "principal_source": "Local",
+              "object_class": "User"
+            },
+            {
+              "name": "WIN-DEMO-SRV01\\jdoe",
+              "principal_source": "Local",
+              "object_class": "User"
+            },
+            {
+              "name": "CORP\\svc_sql",
+              "principal_source": "Domain",
+              "object_class": "User"
+            }
+          ],
+          "Remote Desktop Users": [],
+          "Remote Management Users": [
+            {
+              "name": "WIN-DEMO-SRV01\\jdoe",
+              "principal_source": "Local",
+              "object_class": "User"
+            }
+          ]
+        }
+      }
+    },
+    "registry": {
+      "ok": true,
+      "error": null,
+      "data": {
+        "uac": {
+          "EnableLUA": 0,
+          "ConsentPromptBehaviorAdmin": 0,
+          "PromptOnSecureDesktop": 0,
+          "LocalAccountTokenFilterPolicy": 1
+        },
+        "lsa": {
+          "RunAsPPL": 0,
+          "LmCompatibilityLevel": 1,
+          "RestrictAnonymous": 0,
+          "RestrictAnonymousSAM": 0,
+          "NoLMHash": 0
+        },
+        "smb1": {
+          "SMB1": 1,
+          "mrxsmb10_start": 0
+        },
+        "rdp": {
+          "fDenyTSConnections": 0,
+          "NLA_UserAuthentication": 0,
+          "PortNumber": 3389
+        },
+        "tls_server": {
+          "SSL 2.0": {
+            "Enabled": null,
+            "DisabledByDefault": null
+          },
+          "SSL 3.0": {
+            "Enabled": 1,
+            "DisabledByDefault": 0
+          },
+          "TLS 1.0": {
+            "Enabled": 1,
+            "DisabledByDefault": 0
+          },
+          "TLS 1.1": {
+            "Enabled": null,
+            "DisabledByDefault": null
+          },
+          "TLS 1.2": {
+            "Enabled": 1,
+            "DisabledByDefault": 0
+          }
+        },
+        "autorun": {
+          "NoDriveTypeAutoRun": 145
+        },
+        "screensaver": {
+          "ScreenSaveActive": null,
+          "ScreenSaverIsSecure": null,
+          "ScreenSaveTimeOut": null
+        },
+        "wu_policy": {
+          "NoAutoUpdate": 1
+        },
+        "powershell_logging": {
+          "EnableScriptBlockLogging": null,
+          "EnableModuleLogging": null,
+          "EnableTranscripting": null
+        }
+      }
+    },
+    "defender": {
+      "ok": true,
+      "error": null,
+      "data": {
+        "am_running": true,
+        "realtime_enabled": false,
+        "behavior_monitor": false,
+        "ioav_enabled": false,
+        "nis_enabled": true,
+        "antispyware_enabled": true,
+        "signature_age_days": 23,
+        "signature_last_updated": "2026-10-17 03:12",
+        "tamper_protection": 0,
+        "engine_version": "1.1.24010.5",
+        "signature_version": "1.421.782.0",
+        "disable_realtime_pref": true,
+        "exclusion_paths": [
+          "C:\\"
+        ],
+        "exclusion_extensions": [],
+        "exclusion_processes": []
+      }
+    },
+    "third_party_av": {
+      "ok": false,
+      "error": "root/SecurityCenter2 is not available on this Windows edition",
+      "data": null
+    },
+    "firewall": {
+      "ok": true,
+      "error": null,
+      "data": {
+        "profiles": [
+          {
+            "name": "Domain",
+            "enabled": true,
+            "default_inbound": "Block",
+            "default_outbound": "Allow",
+            "allow_local_rules": true
+          },
+          {
+            "name": "Private",
+            "enabled": false,
+            "default_inbound": "NotConfigured",
+            "default_outbound": "Allow",
+            "allow_local_rules": true
+          },
+          {
+            "name": "Public",
+            "enabled": false,
+            "default_inbound": "NotConfigured",
+            "default_outbound": "Allow",
+            "allow_local_rules": true
+          }
+        ],
+        "netsh_raw": [
+          "Domain Profile State               ON",
+          "Private Profile State              OFF",
+          "Public Profile State               OFF"
+        ]
+      }
+    },
+    "bitlocker": {
+      "ok": true,
+      "error": null,
+      "data": {
+        "volumes": [
+          {
+            "mount_point": "C:",
+            "volume_status": "FullyDecrypted",
+            "protection": "Off",
+            "encryption_pct": 0,
+            "key_protectors": []
+          }
+        ],
+        "managebde_raw": null
+      }
+    },
+    "hotfixes": {
+      "ok": true,
+      "error": null,
+      "data": {
+        "updates": [
+          {
+            "id": "KB5062552",
+            "description": "Update (demo fixture)",
+            "installed_on": "2025-04-08"
+          },
+          {
+            "id": "KB5049622",
+            "description": "Update (demo fixture)",
+            "installed_on": "2025-02-11"
+          }
+        ],
+        "count": 2
+      }
+    },
+    "auditpol": {
+      "ok": true,
+      "error": null,
+      "data": {
+        "lines": [
+          "Machine Name,            WIN-DEMO-SRV01",
+          "Policy Target,           Local Policy",
+          "System                   Security State Change              Success",
+          "Logon/Logoff             Logon                              No Auditing",
+          "Logon/Logoff             Logoff                             Success",
+          "Account Management       User Account Management            No Auditing",
+          "Account Management       Security Group Management          Success",
+          "Policy Change            Audit Policy Change                Success and Failure",
+          "Privilege Use            Sensitive Privilege Use            Success",
+          "Detailed Tracking        Process Creation                   No Auditing"
+        ]
+      }
+    },
+    "listeners": {
+      "ok": true,
+      "error": null,
+      "data": [
+        {
+          "local_address": "0.0.0.0",
+          "local_port": 135,
+          "pid": 956,
+          "process": "svchost"
+        },
+        {
+          "local_address": "0.0.0.0",
+          "local_port": 445,
+          "pid": 4,
+          "process": "System"
+        },
+        {
+          "local_address": "0.0.0.0",
+          "local_port": 3389,
+          "pid": 2820,
+          "process": "TermService"
+        },
+        {
+          "local_address": "::",
+          "local_port": 3389,
+          "pid": 2820,
+          "process": "TermService"
+        },
+        {
+          "local_address": "0.0.0.0",
+          "local_port": 23,
+          "pid": 3016,
+          "process": "TlntSvr"
+        },
+        {
+          "local_address": "0.0.0.0",
+          "local_port": 5985,
+          "pid": 2210,
+          "process": "winrshost"
+        },
+        {
+          "local_address": "0.0.0.0",
+          "local_port": 5900,
+          "pid": 3308,
+          "process": "winvnc"
+        }
+      ]
+    },
+    "services": {
+      "ok": true,
+      "error": null,
+      "data": [
+        {
+          "name": "LegacyAgentSvc",
+          "display_name": "Legacy Agent Service",
+          "state": "Running",
+          "start_mode": "Auto",
+          "start_name": "LocalSystem",
+          "path_name": "C:\\Program Files\\Legacy Agent\\agent.exe"
+        },
+        {
+          "name": "TempWorker",
+          "display_name": "Temp Worker Service",
+          "state": "Running",
+          "start_mode": "Auto",
+          "start_name": "LocalSystem",
+          "path_name": "C:\\Temp\\worker\\worker.exe"
+        },
+        {
+          "name": "SafeSvc",
+          "display_name": "Safe Service",
+          "state": "Running",
+          "start_mode": "Auto",
+          "start_name": "LocalSystem",
+          "path_name": "\"C:\\Program Files\\SafeSvc\\safe.exe\" -k group"
+        },
+        {
+          "name": "WSearch",
+          "display_name": "Windows Search",
+          "state": "Running",
+          "start_mode": "Auto",
+          "start_name": "LocalSystem",
+          "path_name": "C:\\Windows\\system32\\SearchIndexer.exe /Embedding"
+        }
+      ]
+    },
+    "shares": {
+      "ok": true,
+      "error": null,
+      "data": [
+        {
+          "name": "ADMIN$",
+          "path": "C:\\Windows",
+          "description": "Remote Admin"
+        },
+        {
+          "name": "C$",
+          "path": "C:\\",
+          "description": "Default share"
+        },
+        {
+          "name": "IPC$",
+          "path": "",
+          "description": "Remote IPC"
+        },
+        {
+          "name": "PublicData",
+          "path": "C:\\Public",
+          "description": "team share"
+        }
+      ]
+    },
+    "enterprise": {
+      "ok": true,
+      "error": null,
+      "data": {
+        "laps": {
+          "windows_laps_policy": false,
+          "legacy_laps_cse": false
+        },
+        "smb_signing": {
+          "server_require": 0,
+          "client_require": 0
+        },
+        "app_control": {
+          "srpv2_rules": [],
+          "appidsvc": "Stopped"
+        },
+        "rdp_timeout": {
+          "max_idle_time_ms": null,
+          "max_disconnection_time_ms": null,
+          "rdp_enabled": 0
+        }
+      }
+    }
+  }
+}

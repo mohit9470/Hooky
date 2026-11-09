@@ -1,0 +1,4 @@
+# Hooky dependencies
+# Core scanner: Python 3.8+ standard library only.
+# PDF report generation requires reportlab:
+reportlab>=3.6
