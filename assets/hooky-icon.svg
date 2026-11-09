@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Hooky — catch security gaps</title>
+  <desc id="desc">Hooky catches hidden security weaknesses: a polished orange hook wraps around a fish and a checkmark, on a dark app icon.</desc>
+
+  <defs>
+    <radialGradient id="bgGlow" cx="50%" cy="34%" r="75%">
+      <stop offset="0%" stop-color="#171512"/>
+      <stop offset="65%" stop-color="#0E0D0C"/>
+      <stop offset="100%" stop-color="#090909"/>
+    </radialGradient>
+
+    <linearGradient id="hookStroke" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFB067"/>
+      <stop offset="30%" stop-color="#FF8B33"/>
+      <stop offset="100%" stop-color="#F76D11"/>
+    </linearGradient>
+
+    <linearGradient id="fishBody" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFB15D"/>
+      <stop offset="35%" stop-color="#FF8A2D"/>
+      <stop offset="100%" stop-color="#E86115"/>
+    </linearGradient>
+
+    <linearGradient id="fishTail" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#FF9B53"/>
+      <stop offset="100%" stop-color="#D5520F"/>
+    </linearGradient>
+
+    <filter id="softShadow" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="14" stdDeviation="10" flood-color="#000000" flood-opacity="0.38"/>
+    </filter>
+
+    <filter id="innerGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="0" stdDeviation="6" flood-color="#FF8A2D" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+
+  <rect width="256" height="256" rx="56" fill="url(#bgGlow)"/>
+  <rect x="18" y="18" width="220" height="220" rx="48" fill="none" stroke="#2D271F" stroke-width="2"/>
+  <circle cx="128" cy="128" r="92" fill="none" stroke="#201D1B" stroke-width="2" stroke-dasharray="3 12" opacity="0.9"/>
+
+  <g filter="url(#softShadow)">
+    <path d="M89 45c20 7 36 21 48 38 17 25 19 54 9 79-9 23-27 39-47 45-17 5-36 0-48-15-13-16-15-37-9-54 7-19 22-31 40-31 12 0 22 5 29 16 4 7 5 15 3 22-2 8-7 14-13 18"
+          fill="none" stroke="url(#hookStroke)" stroke-linecap="round" stroke-linejoin="round" stroke-width="13"/>
+    <ellipse cx="88" cy="47" rx="6" ry="8" fill="none" stroke="url(#hookStroke)" stroke-width="4"/>
+
+    <g transform="translate(0 1)" filter="url(#innerGlow)">
+      <path d="M105 105c17-17 42-21 60-9l18-13-1 22c10 12 11 28 1 40l3 23-21-15c-18 12-42 11-58-6l-10 5 4-14c-4-9-5-18 0-27l-4-14 9 5Z" fill="url(#fishBody)"/>
+      <path d="m137 103 18 24-18 24-5-24 5-24Z" fill="url(#fishTail)"/>
+      <path d="m137 127 18-23v46l-18-23Z" fill="#FFBE78" opacity="0.8"/>
+      <circle cx="165" cy="117" r="4.2" fill="#100F0F"/>
+      <path d="M171 130h9" stroke="#100F0F" stroke-linecap="round" stroke-width="2.1"/>
+    </g>
+
+    <path d="M101 163c6-3 11-7 15-13" fill="none" stroke="url(#hookStroke)" stroke-linecap="round" stroke-linejoin="round" stroke-width="5"/>
+    <path d="m108 158-8-2 5 7" fill="none" stroke="url(#hookStroke)" stroke-linecap="round" stroke-linejoin="round" stroke-width="4"/>
+
+    <g transform="translate(0 2)">
+      <circle cx="76" cy="183" r="16" fill="none" stroke="#FFB067" stroke-width="3.5" opacity="0.9"/>
+      <path d="m68 183 6 6 11-13" fill="none" stroke="#FFB067" stroke-linecap="round" stroke-linejoin="round" stroke-width="4.5"/>
+      <path d="M98 183h22" stroke="#FFB067" stroke-linecap="round" stroke-width="4.5" opacity="0.8"/>
+    </g>
+  </g>
+</svg>
