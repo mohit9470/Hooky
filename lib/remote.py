@@ -14,6 +14,13 @@ Two independent transports, both driven from the Linux controller:
    (the agent supports this natively via -Uri/-Token). Results are saved as
    files ready for `hooky.py get` / --windows-import.
 
+3. One-click link mode (HookCollector(..., link=LinkRegistry))
+   The same collector additionally serves /go/<token>: the auditor sends that
+   link to the Windows user, the browser shows a consent page and the download
+   of a self-contained hooky-audit.cmd. Opening it asks permission natively,
+   runs the read-only agent and POSTs the result back once - then the token
+   is burned, the reports are generated automatically and the link is dead.
+
 Everything here is read-only with respect to both hosts (apart from copying
 the agent script and its JSON output into the Windows user's profile).
 """
@@ -31,6 +38,9 @@ from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from .core import sanitize
+from . import link as _link
+
+LinkRegistry = _link.LinkRegistry   # re-export for the interactive flows
 
 # Path of the bundled PowerShell agent (hooky/windows/hooky-agent.ps1)
 AGENT_PATH = os.path.join(
@@ -188,6 +198,11 @@ class _HookState(object):
     token = ""
     outdir = ""
     sink = None
+    link = None            # link.LinkRegistry when a one-click link flow runs
+    link_on_result = None  # callback(path) -> import rc, called on link result
+
+
+_LINK_PATH = re.compile(r"^/go/([A-Za-z0-9_-]+)(?:/([a-z]+))?$")
 
 
 def controller_ip():
@@ -225,23 +240,104 @@ class _HookHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def do_GET(self):  # /health
-        if self.path.rstrip("/") in ("/health", ""):
+    def _send_html(self, code, html):
+        body = html.encode("utf-8")
+        self.send_response(code)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _send_file(self, code, data, name):
+        self.send_response(code)
+        self.send_header("Content-Type", "application/octet-stream")
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Content-Disposition",
+                         'attachment; filename="%s"' % name)
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(data)
+
+    def do_GET(self):
+        path = (self.path.split("?", 1)[0].rstrip("/") or "/")
+        if path in ("/health", "/"):
             self._send(200, {"status": "ok",
                              "tool": "Hooky hook collector",
                              "outdir": _HookState.outdir})
+            return
+        reg = _HookState.link
+        m = _LINK_PATH.match(path)
+        if reg is not None and m:
+            self._handle_link(m.group(1), m.group(2), reg)
+            return
+        self._send(404, {"error": "use POST /hook"})
+
+    def _handle_link(self, token, action, reg):
+        """Serve the one-click consent flow: /go/<token>[/allow|/file|/deny]."""
+        if token != reg.token:
+            self.log_message("link request with unknown token from %s"
+                             % self.client_address[0])
+            self._send_html(410, _link.gone_page("this link does not exist"))
+            return
+        if not reg.live():
+            self._send_html(410, _link.gone_page(reg.gone_reason()))
+            return
+        ip = self.client_address[0]
+        if not action:
+            if reg.state == "waiting":
+                reg.state = "opened"
+            reg.client_ip = ip
+            reg.note("the user OPENED the audit link (from %s)" % ip)
+            self._send_html(200, _link.consent_page(reg))
+        elif action == "allow":
+            if reg.state in ("waiting", "opened"):
+                reg.state = "allowed"
+            reg.client_ip = ip
+            reg.note("the user ALLOWED the audit (from %s) - Windows asks "
+                     "for permission once more when the file is opened" % ip)
+            self._send_html(200, _link.allow_page(reg))
+        elif action == "file":
+            if reg.state == "waiting":
+                reg.state = "opened"
+            reg.client_ip = ip
+            reg.note("the audit file was downloaded (from %s) - waiting "
+                     "for it to run" % ip)
+            try:
+                host_hdr = self.headers.get("Host")
+                uri = "http://%s/hook" % (host_hdr or "%s:%d" % (
+                    controller_ip(), _HookState.port))
+                data = _link.build_oneclick_cmd(uri, reg)
+            except Exception as exc:
+                self._send(500, {"error": "cannot build audit file: %s" % exc})
+                return
+            self._send_file(200, data.encode("utf-8"), _link.CMD_NAME)
+        elif action == "deny":
+            reg.state = "denied"
+            reg.client_ip = ip
+            reg.note("the user DECLINED the audit (from %s) - nothing was "
+                     "collected" % ip)
+            self._send_html(200, _link.deny_page())
         else:
-            self._send(404, {"error": "use POST /hook"})
+            self._send(404, {"error": "unknown link action"})
 
     def do_POST(self):
         if self.path.rstrip("/") not in ("/hook", ""):
             self._send(404, {"error": "POST /hook only"})
             return
-        if _HookState.token:
-            # current header first, then the legacy names of older agents
-            supplied = (self.headers.get("X-Hooky-Token")
-                        or self.headers.get("X-SecureAudit-Token")
-                        or self.headers.get("X-VulnScope-Token") or "")
+        supplied = (self.headers.get("X-Hooky-Token")
+                    or self.headers.get("X-SecureAudit-Token")
+                    or self.headers.get("X-VulnScope-Token") or "")
+        reg = _HookState.link
+        if reg is not None:
+            # one-click link mode: the token must match the LIVE link
+            if (not hmac.compare_digest(supplied, reg.token)) or not reg.live():
+                self._send(403, {"error": "invalid or expired audit link token"})
+                self.log_message("REJECTED request from %s (bad or used "
+                                 "link token)" % self.client_address[0])
+                return
+        elif _HookState.token:
+            # webhook mode: current header first, then legacy agent names
             if not hmac.compare_digest(supplied, _HookState.token):
                 self._send(403, {"error": "invalid or missing "
                                           "X-Hooky-Token"})
@@ -263,6 +359,33 @@ class _HookHandler(BaseHTTPRequestHandler):
         path = os.path.join(_HookState.outdir, fname)
         with open(path, "w", encoding="utf-8") as fh:
             json.dump(data, fh, indent=2, ensure_ascii=False)
+        if reg is not None:
+            # one-click link mode: generate the reports NOW, then burn the
+            # token so the link can never be used again (auto disconnect).
+            reg.note("RESULT received from %s - generating the reports" % comp)
+            ok = True
+            cb = _HookState.link_on_result
+            if cb is not None:
+                try:
+                    ok = cb(path) != 2
+                except Exception:
+                    ok = False
+            if ok:
+                reg.state = "used"
+                reg.note("reports generated - the audit link is now closed")
+                if _HookState.sink is not None:
+                    try:
+                        _HookState.sink._record(path)
+                    except Exception:
+                        pass
+                self._send(200, {"status": "ok", "saved": fname,
+                                 "link": "closed"})
+            else:
+                reg.note("report generation FAILED - the link stays open, "
+                         "the file can be run again")
+                self._send(500, {"error": "report generation failed - "
+                                          "you may run the audit file again"})
+            return
         if _HookState.sink is not None:
             try:
                 _HookState.sink._record(path)
@@ -282,9 +405,13 @@ class HookCollector(object):
     .start() runs the HTTP server in a daemon thread; every accepted POST
     is saved under .outdir and its path is pushed onto .queue, so the main
     thread can wait for results and keep prompting the user.
+
+    Pass link=<LinkRegistry> (and optionally on_result=<callback>) to enable
+    the one-click audit link: /go/<token> then serves the consent pages and
+    an accepted result is handed to on_result before the token is burned.
     """
 
-    def __init__(self, port, token, outdir):
+    def __init__(self, port, token, outdir, link=None, on_result=None):
         if not (1 <= port <= 65535):
             raise RemoteError("invalid hook port %d" % port)
         self.port = port
@@ -296,6 +423,9 @@ class HookCollector(object):
         _HookState.token = self.token
         _HookState.outdir = self.outdir
         _HookState.sink = self
+        _HookState.link = link
+        _HookState.link_on_result = on_result
+        _HookState.port = port
         os.makedirs(self.outdir, exist_ok=True)
 
     def _record(self, path):
@@ -350,12 +480,42 @@ def _print_hook_banner(port, token, outdir, ip=None):
     print()
 
 
+def _print_link_banner(port, reg, outdir, ip=None):
+    ip = ip or controller_ip()
+    url = "http://%s:%d/go/%s" % (ip, port, reg.token)
+    print()
+    print("Hooky ONE-CLICK AUDIT LINK is ready")
+    print("  Reports will be saved to : %s" % os.path.abspath(outdir))
+    print("  Audit size               : %s" %
+          ("quick (most important checks)" if reg.quick
+           else "full - all Windows checks"))
+    print("  Link valid for           : %d minutes, ONE audit only"
+          % reg.ttl_minutes)
+    print()
+    print("  Send this link to the person whose PC you want to audit")
+    print("  (chat, e-mail - any way you like):")
+    print()
+    print("      %s" % url)
+    print()
+    print("  Then everything runs by itself:")
+    print("    1. they open the link and see a permission page")
+    print("    2. they click 'I allow' - a small audit file downloads")
+    print("    3. they open the file and click Yes on the Windows popup")
+    print("    4. the read-only audit runs (~15-30 s), the result arrives here")
+    print("    5. your reports are generated and the link closes by itself")
+    print()
+    print("  Works from any device that can reach this machine on your")
+    print("  network (same Wi-Fi/LAN or VPN). Press Ctrl+C to stop waiting.")
+    print()
+
+
 def start_hook(port, token, outdir):
     """Run the collector until Ctrl+C. Returns process exit code (int)."""
     if not (1 <= port <= 65535):
         raise RemoteError("invalid hook port %d" % port)
     _HookState.token = token or ""
     _HookState.outdir = os.path.abspath(outdir)
+    _HookState.port = port
     os.makedirs(_HookState.outdir, exist_ok=True)
     try:
         srv = ThreadingHTTPServer(("0.0.0.0", port), _HookHandler)

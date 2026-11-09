@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/hooky-icon.svg" alt="Hooky - Simple Cross-Platform Security Auditing" width="160">
+<img src="assets/banner.png" alt="Hooky - Simple Cross-Platform Security Auditing" width="640">
 
 # Hooky — Simple Cross-Platform Security Audit & Reporting Toolkit
 
@@ -13,13 +13,33 @@
 
 ---
 
+**Contents**
+
+1. [What is Hooky?](#what-is-hooky)
+2. [What's new](#whats-new)
+3. [Requirements](#requirements)
+4. [Installation — step by step](#installation--step-by-step)
+5. [Quick start (menu — nothing to memorise)](#quick-start-menu--nothing-to-memorise)
+6. [Commands & options](#commands--options)
+7. [Audit modules & check catalogue](#audit-modules--check-catalogue)
+8. [Auditing Windows hosts — four ways, one report](#auditing-windows-hosts--four-ways-one-report)
+9. [Troubleshooting & FAQ](#troubleshooting--faq)
+10. [Report contents (every format)](#report-contents-every-format)
+11. [Scheduled audits](#scheduled-audits)
+12. [Limitations & notes](#limitations--notes)
+13. [License](#license)
+14. [Project layout](#project-layout)
+15. [Extending Hooky](#extending-hooky)
+
+## What is Hooky?
+
 **Hooky** is a read-only security auditor with a **zero-memorisation
 interactive menu**. Run it, and it asks what you want to do:
 
 ```
 $ python3 hooky.py
 ========================================================================
-  Hooky 2.1.0 - Simple Cross-Platform Security Audit
+  Hooky 2.3.0 - Simple Cross-Platform Security Audit
 ========================================================================
   Local Linux: 60 tests   |   Windows: 29 tests   |   Reports: HTML + PDF + JSON + CSV
 ------------------------------------------------------------------------
@@ -33,32 +53,202 @@ $ python3 hooky.py
 
 On **Linux** it runs **60 targeted tests** across six modules with plain
 shell commands. **Windows hosts** are audited remotely through a bundled,
-dependency-free **PowerShell agent** that the Linux controller can push over
-SSH, receive through a **webhook link**, or import from a file. All findings
+dependency-free **PowerShell agent** (v1.4.0 — collectors run **in
+parallel**, a full scan usually takes **15–30 seconds**; `-Quick` gives a
+~10-second triage) that the Linux controller can push over SSH, receive
+through a **webhook**, audit with a **one-click link** the user simply
+opens, or import from a file. All findings
 land in one timestamped report bundle that names every vulnerability, its
 **exact location**, the **evidence found** and step-by-step **remediation**.
 
 ```
-┌────────────────┐  SSH push / webhook link / manual import  ┌──────────────────────────┐
-│  Windows host  │ ──( hooky-agent.ps1, read-only )──▶       │  Hooky (Linux controller) │
-└────────────────┘                                           │  60 Linux + 29 WIN tests  │
-┌────────────────┐                                           │  hooky_reports/           │
-│  Linux host    │ ───────( local audit, 60 tests )──────▶   │  ├── …html  ← dashboard   │
-└────────────────┘                                           │  ├── …pdf   ← mgmt report │
-                                                             │  ├── …json  ← CI/SIEM     │
-                                                             │  └── …csv   ← flat table  │
-                                                             └───────────────────────────┘
+┌────────────────┐  SSH push / webhook / one-click link / import ┌─────────────────────────┐
+│  Windows host  │ ──( hooky-agent.ps1, read-only )──▶          │  Hooky (Linux controller) │
+└────────────────┘                                              │  60 Linux + 29 WIN tests  │
+┌────────────────┐                                              │  hooky_reports/           │
+│  Linux host    │ ───────( local audit, 60 tests )──────▶      │  ├── …html  ← dashboard   │
+└────────────────┘                                              │  ├── …pdf   ← mgmt report │
+                                                                │  ├── …json  ← CI/SIEM     │
+                                                                │  └── …csv   ← flat table  │
+                                                                └───────────────────────────┘
 ```
+
+## What's new
+
+| Version | Highlights |
+| --- | --- |
+| **2.3.0** (current) | **One-click audit link** — print a web link, the Windows user clicks *I allow*, opens one downloaded file, clicks *Yes*; the audit runs, reports are generated automatically and the link burns itself after a single use. New `link` command + menu option. |
+| **2.2.0** | **PowerShell agent v1.4.0** — the 14 collectors now run **in parallel** (full scan ~15–30 s instead of minutes), plus a `-Quick` triage mode (~10 s). |
+| **2.1.0** | Renamed to **Hooky**; simplified command surface (`scan` / `win` / `hook` / `get` / `agent`). |
+| **2.0.0** | SecureAudit rewrite: strict read-only guarantee, unified timestamped report bundle (HTML + PDF + JSON + CSV). |
+| 1.x | Original **VulnScope** CLI. |
 
 ## Requirements
 
 - Python **3.8+** (standard library only) on the Linux controller.
-- `reportlab` only for the PDF report (`pip install -r requirements.txt`).
+- `reportlab` **only for the PDF report** (`pip install -r requirements.txt`).
+  HTML, JSON and CSV work with zero extra packages.
 - Linux (Debian/Ubuntu/RHEL-family tested). `find`, `grep`, `ss`,
   `dpkg-query`/`rpm` are used when present and degrade gracefully.
-- Windows side needs **nothing installed** — only Windows PowerShell 5.1+
+- **Windows side needs nothing installed** — only Windows PowerShell 5.1+
   (built into Win10/11/Server 2016+). SSH mode additionally needs Windows
   OpenSSH Server on the target.
+
+## Installation — step by step
+
+Everything runs on the **Linux controller**; the Windows side installs
+nothing (see the box at the end of this section).
+
+### Step 1 — Get Hooky onto the Linux controller
+
+Copy the `hooky/` folder to the machine that will run the audits, e.g.
+`/opt/hooky`:
+
+```bash
+# option A: from the release zip
+sudo unzip hooky-2.3.0.zip -d /opt
+# option B: from another machine
+scp -r hooky/ user@controller:/tmp/ && sudo mv /tmp/hooky /opt/hooky
+```
+
+Then enter the folder — all commands below are run from there:
+
+```bash
+cd /opt/hooky
+```
+
+### Step 2 — Check Python
+
+```bash
+python3 --version        # must print 3.8 or newer
+```
+
+If it is missing: `sudo apt install python3` (Debian/Ubuntu/Kali) or
+`sudo dnf install python3` (RHEL/Fedora).
+
+### Step 3 — Create a virtual environment (recommended)
+
+A venv keeps Hooky's only dependency isolated from the system Python —
+this also avoids the PEP 668 "externally-managed-environment" error on
+Kali / Debian 12+ / Ubuntu 23.04+:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+(If venv creation fails: `sudo apt install python3-venv`, then retry.)
+Activate the venv in every new shell before running Hooky — or skip the
+venv and use the `--break-system-packages` fallback shown in Step 4.
+
+### Step 4 — Install the PDF dependency
+
+HTML, JSON and CSV reports need **no** installation at all. For PDF:
+
+```bash
+pip install -r requirements.txt      # installs reportlab
+```
+
+> **Kali Linux / Debian 12+ / Ubuntu 23.04+** — if pip refuses with
+> `error: externally-managed-environment`, either use the venv from
+> Step 3 (recommended) or install system-wide with:
+> `pip3 install --break-system-packages reportlab`
+
+No reportlab? Everything else still works — Hooky simply notes that PDF
+is unavailable and offers the other formats.
+
+### Step 5 — Verify the installation
+
+```bash
+python3 hooky.py --version    # → "Hooky 2.3.0"
+python3 hooky.py checks       # → the full catalogue (89 checks: 60 HS/AU/NW/PK/SC/EC + 29 WIN)
+```
+
+Then try a **real audit without a real server** — Hooky ships a synthetic,
+vulnerable Windows Server 2022 fixture:
+
+```bash
+python3 hooky.py get examples/windows-demo-result.json
+```
+
+Expected: 28 of 29 tests vulnerable, **46 findings** (7 CRITICAL), risk
+rating CRITICAL, and a timestamped report bundle written to
+`hooky_reports/`. Exit code is `1` (vulnerabilities found) — that is the
+correct, intended result for this planted-vulnerability demo.
+
+### Step 6 — First real audit
+
+```bash
+python3 hooky.py                       # menu — pick 1
+# or directly:
+sudo python3 hooky.py scan             # full coverage (shadow, sudoers, firewall, …)
+```
+
+Without `sudo` the tool still runs, but tests it cannot read are marked
+`SKIPPED` with the reason instead of silently passing. Reports land in
+`./hooky_reports/` (change with `--output-dir DIR`).
+
+### Step 7 — (Optional) receive Windows results — open the port
+
+Only needed for the **webhook** and **one-click link** channels, which
+listen on TCP **8090** by default:
+
+```bash
+sudo ufw allow 8090/tcp                # Ubuntu/Debian
+# or: sudo firewall-cmd --add-port=8090/tcp --permanent && sudo firewall-cmd --reload
+```
+
+SSH mode (channel A) needs only normal SSH access. The one-click link
+works from any device that can reach the controller (LAN/VPN).
+
+### Step 8 — (Optional) make Hooky handy & persistent
+
+```bash
+# run from anywhere
+sudo ln -s /opt/hooky/hooky.py /usr/local/bin/hooky
+```
+
+Weekly cron audit:
+
+```cron
+0 6 * * 1  cd /opt/hooky && sudo python3 hooky.py scan --output-dir /var/log/hooky/$(date +\%G-\%V) >> /var/log/hooky/cron.log 2>&1
+```
+
+To keep the webhook collector alive after reboots (example systemd unit,
+`/etc/systemd/system/hooky-hook.service`):
+
+```ini
+[Unit]
+Description=Hooky webhook collector
+After=network-online.target
+
+[Service]
+WorkingDirectory=/opt/hooky
+ExecStart=/usr/bin/python3 hooky.py hook
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Then: `sudo systemctl enable --now hooky-hook`.
+
+> **Windows side: nothing to install.** The agent is fetched/created at
+> run time — pushed by Hooky over SSH (channel A), generated as a
+> ready-made one-line command (channel B), downloaded as a single
+> `hooky-audit.cmd` from the one-click link (channel C), or exported with
+> `python3 hooky.py agent` and copied over (channel D). Only SSH mode
+> needs one-time prep on the target (OpenSSH Server — see channel A).
+
+### Installation checklist
+
+| Check | Expected result |
+| --- | --- |
+| `python3 hooky.py --version` | `Hooky 2.3.0` |
+| `python3 hooky.py checks` | 89 checks listed (60 Linux + 29 Windows) |
+| `python3 hooky.py get examples/windows-demo-result.json` | 46 findings, reports in `hooky_reports/` |
+| `python3 hooky.py scan --quick` | local Linux audit completes, exit code 0 or 1 |
+| `python3 hooky.py hook` | prints webhook command + link, waits on port 8090 |
 
 ## Quick start (menu — nothing to memorise)
 
@@ -73,38 +263,57 @@ python3 hooky.py
   - *Connect now over SSH* — asks for `user@host`, shows exactly what will
     happen (copy agent → run → fetch JSON → delete both), asks for your
     permission, then audits.
-  - *Generate a webhook link* — prints a ready-made, one-line PowerShell
+  - *Webhook + agent command* — prints a ready-made, one-line PowerShell
     command with the controller IP and a security token; run it on the
     Windows host (PowerShell as Administrator) and the result arrives here
     automatically and is audited with your confirmation.
+  - *One-click audit link* — the easiest way: Hooky prints a web link, you
+    send it to the Windows user, they click **I allow**, open the downloaded
+    file, click **Yes** — and the report appears on your side automatically
+    (see channel C below).
 - **Option 3 — Receive results from Windows** — the same webhook flow on
   its own (one collector, many hosts).
 - **Option 4 — Audit a saved result file** — imports any agent JSON
   (received by webhook, copied manually, or from `examples/`).
 - **Option 5 — Show all security checks.**
 
+After every audit the menu asks **which report format** you want:
+
+```
+  Which report format do you want?
+    1) HTML   interactive dashboard - recommended, opens in any browser
+    2) PDF    formal document (needs reportlab:  pip install reportlab)
+    3) JSON   raw machine-readable data for other tools
+    4) CSV    spreadsheet - opens in Excel / LibreOffice
+    5) ALL    every format (HTML + PDF + JSON + CSV)
+  Press Enter = 5 (all formats)
+```
+
 Every report file name and every webhook result carries a **timestamp**, so
 runs never overwrite each other.
 
-## Simple commands (all optional)
+## Commands & options
 
 | Command | What it does |
 | --- | --- |
 | `python3 hooky.py` | interactive menu (in a terminal) |
 | `python3 hooky.py scan` | audit **this** Linux system |
 | `python3 hooky.py win admin@win-host` | audit a Windows host over SSH |
-| `python3 hooky.py win` | Windows connection wizard (SSH or webhook) |
-| `python3 hooky.py hook` | start the webhook collector, print the link |
+| `python3 hooky.py win` | Windows connection wizard (SSH, webhook or link) |
+| `python3 hooky.py hook` | start the webhook collector, print the command |
+| `python3 hooky.py link` | one-click audit: generate the link, send it, done |
 | `python3 hooky.py get FILE` | audit a received Windows result file |
 | `python3 hooky.py agent [FILE]` | export the Windows agent script |
 | `python3 hooky.py checks` | show the full check catalogue |
-| `python3 hooky.py help` | full help: every command + usage (-h / -help / --help too) |
+| `python3 hooky.py help` | full help: every command + usage (`-h` / `-help` / `--help` too) |
 
 Useful extras: `--quick` (shorter filesystem timeouts), `--modules
 hardening,auth` (subset), `--formats html,json`, `--output-dir DIR`,
-`--title TEXT`. All classic long options (`--all`, `--windows`,
-`--windows-import`, `--hook …`) keep working for cron/CI. The old
-`audit.py` and `vulnscope.py` names still run as compatibility wrappers.
+`--title TEXT`, `--hook-port PORT`, `--hook-token TOKEN`, `--hook-dir DIR`,
+`-V/--version`. All classic long options (`--all`, `--windows`,
+`--windows-import`, `--export-agent`, `--hook …`) keep working for
+cron/CI. The old `audit.py` and `vulnscope.py` names still run as
+compatibility wrappers.
 
 **Exit codes:** `0` = clean, `1` = vulnerabilities found, `2` = tool error —
 use as a CI gate: `python3 hooky.py scan || echo "baseline drift!"`.
@@ -159,7 +368,7 @@ NLA, firewall profiles, risky listeners. Updates & AV: Defender protection,
 signature age, dangerous exclusions, patch freshness & pending reboot, OS
 end-of-life, automatic-update policy, `auditpol` coverage.
 
-## Auditing Windows hosts — three ways, one report
+## Auditing Windows hosts — four ways, one report
 
 ### A. SSH push (fully automated)
 One-time prep on the Windows host (elevated PowerShell):
@@ -189,7 +398,36 @@ Each arriving result is saved timestamped in `hooky_results/`, and the
 menu flow offers to audit it **immediately** with one keypress. The webhook
 endpoint requires the shared token (`X-Hooky-Token` header).
 
-### C. Manual / offline
+### C. One-click audit link (no SSH, no commands on the Windows side)
+```bash
+python3 hooky.py link            # or menu option 2 → "One-click audit link"
+```
+Hooky prints a **one-time link** like `http://<controller-ip>:8090/go/hooky-…`
+(valid **30 minutes** by default, **one audit only**). Send it to the person
+whose PC you want to audit — chat, e-mail, any way you like. Then everything
+runs by itself:
+
+1. they open the link → a **consent page** explains what will be collected
+   (read-only: nothing installed, nothing changed) with *I allow* / *Decline*;
+2. *I allow* downloads **one self-contained file** (`hooky-audit.cmd`) with
+   the whole read-only agent embedded;
+3. they open it and click **Yes** on the native Windows permission popup;
+4. the audit runs (~15–30 s), the result is sent back **once**;
+5. Hooky generates the reports **automatically**, closes the link (the token
+   is burned — a second submission is rejected with 403) and exits by itself.
+
+While waiting you see live status lines: *user opened the link*, *user
+allowed*, *file downloaded*, *result received*. Declining burns the link too
+and collects nothing.
+
+Notes: the link works from any device that can reach the controller on the
+network (same LAN/VPN — for true internet-wide access you would need port
+forwarding or a tunnel, which is not recommended for beginners). A browser
+can never execute scripts directly — the download + open step is mandatory
+Windows/browser security behaviour, which is exactly why the second consent
+popup exists.
+
+### D. Manual / offline
 ```bash
 python3 hooky.py agent                     # export the agent script
 # copy it to Windows, run (elevated):
@@ -209,6 +447,7 @@ python3 hooky.py get examples/windows-demo-result.json
 | `-OutFile PATH` | JSON result path (default `./hooky-agent-output.json`) |
 | `-Uri URL` | also POST the JSON to the Hooky webhook |
 | `-Token T` | sent as `X-Hooky-Token` header with `-Uri` |
+| `-Quick` | fast triage mode (~10 s, reduced timeouts) |
 | exit 0 / 2 / 3 | success / cannot write file / push failed |
 
 The agent is read-only, installs nothing, and collects 14 snapshots
@@ -217,6 +456,55 @@ Defender, third-party AV, firewall, BitLocker, hotfixes, `auditpol`,
 listeners, services, shares, enterprise controls). Non-English Windows:
 `net accounts` / `auditpol` parsers expect English output and mark affected
 tests `SKIPPED` otherwise.
+
+## Troubleshooting & FAQ
+
+**I opened the webhook URL in my browser and got `{"error": "use POST /hook"}`.**
+That is expected. Browsers send GET; the endpoint only accepts **POST with
+the token header**. The printed command is meant to run in **PowerShell on
+the Windows host**, not in a browser.
+
+**The agent printed "push failed" and exited (exit 3).** The agent makes no
+automatic retries; the local result file is kept. Work through its 4-point
+checklist and run the same command again — results are timestamped, so
+nothing is overwritten:
+1. Linux IP and port correct in `-Uri`? (`hostname -I` on the controller)
+2. Is the collector still running there? (`python3 hooky.py hook`)
+3. Does `-Token` match the collector's token?
+4. Any firewall between the two machines? (`sudo ufw allow 8090/tcp`)
+
+**`403 invalid or missing X-Hooky-Token`.** Token mismatch — copy the
+command exactly as printed by `hook` (or pass the same token with
+`--hook-token`).
+
+**One-click link: `403 invalid or expired audit link token` / "gone" page.**
+The link has a **30-minute TTL**, works **once**, and is burned on success
+*and* on decline. Generate a fresh one: `python3 hooky.py link`.
+
+**The Windows user ran `hooky-audit.cmd` but I never got the result.**
+The link is only burned after a **successful** delivery — if the network or
+the controller was down, the downloaded file can simply be **run again**.
+If the result arrived but report generation failed (HTTP 500), the link
+stays open for the same reason: run the file again.
+
+**Nothing arrives even though the agent says it pushed.** Check the
+collector's terminal for `REJECTED` / `ACCEPTED` lines, confirm both
+machines are on the same network/VPN, and open TCP 8090 on the controller
+(Step 7 of the installation).
+
+**PDF report fails / says reportlab is missing.** Install it (Step 4):
+`pip install -r requirements.txt`. HTML/JSON/CSV never need it.
+
+**Many Linux tests are `SKIPPED`.** Unprivileged run — re-run with `sudo`
+for full coverage. Every skip states its reason in the report.
+
+**Windows tests show `SKIPPED` on a non-English Windows.** `net accounts`
+and `auditpol` output is language-dependent; the parsers expect English and
+skip cleanly otherwise.
+
+**`error: externally-managed-environment` when pip installing.** Kali /
+Debian 12+ / Ubuntu 23.04+ protect the system Python — use the venv
+(Step 3) or `pip3 install --break-system-packages reportlab` (Step 4).
 
 ## Report contents (every format)
 
@@ -242,7 +530,8 @@ The **JSON/CSV** payloads carry the same data for SIEM pipelines and Excel.
 ```cron
 # weekly full audit, Monday 06:00
 0 6 * * 1  cd /opt/hooky && sudo python3 hooky.py scan --output-dir /var/log/hooky/$(date +\%G-\%V) >> /var/log/hooky/cron.log 2>&1
-# webhook collector for Windows fleet (systemd service or tmux)
+# webhook collector for the Windows fleet: keep it running with the
+# systemd unit from Installation Step 8 (or tmux / screen)
 ```
 
 ## Limitations & notes
@@ -255,6 +544,9 @@ The **JSON/CSV** payloads carry the same data for SIEM pipelines and Excel.
   `sudo`.
 - **Containers:** kernel sysctls, GRUB and service-level checks reflect the
   *host*; EC findings are annotated accordingly.
+- **One-click link reach:** the link is reachable from the controller's
+  LAN/VPN; internet-wide use needs port forwarding or a tunnel (not
+  recommended — expose only what you must).
 - **Authorisation:** only audit systems you own or are authorised to assess.
   Hooky is read-only and safe for production.
 
@@ -267,11 +559,11 @@ warranty. Only audit systems you own or are explicitly authorised to test.
 
 ```
 hooky/
-├── hooky.py               # CLI entry point: menu + scan/win/hook/get/agent/checks
+├── hooky.py               # CLI entry point: menu + scan/win/hook/link/get/agent/checks
 ├── audit.py               # compatibility wrapper for the old entry name
 ├── vulnscope.py           # compatibility wrapper for the original name
 ├── windows/
-│   └── hooky-agent.ps1    # read-only PowerShell agent (v1.3.0)
+│   └── hooky-agent.ps1    # read-only PowerShell agent (v1.4.0, parallel)
 ├── examples/
 │   └── windows-demo-result.json  # synthetic vulnerable Windows 2022 fixture
 ├── lib/
@@ -283,7 +575,8 @@ hooky/
 │   ├── checks_secrets.py      # SC-001…SC-009
 │   ├── checks_enterprise.py   # EC-001…EC-008 (corporate compliance)
 │   ├── checks_windows.py      # WIN-001…WIN-029 (analyse agent JSON)
-│   ├── remote.py              # SSH push transport + webhook collector
+│   ├── remote.py              # SSH push transport + webhook/link collector
+│   ├── link.py                # one-click link: consent pages + .cmd payload
 │   ├── report_data.py         # JSON + CSV writers
 │   ├── report_html.py         # self-contained interactive HTML dashboard
 │   └── report_pdf.py          # formal PDF report (ReportLab)
@@ -291,10 +584,13 @@ hooky/
 ├── LICENSE                 # MIT
 ├── README.md
 └── assets/
-    └── hooky-icon.svg       # project icon
+    ├── logo.png            # square icon (avatar / favicon / social preview)
+    └── banner.png          # wide README banner
 ```
 
-Extending Hooky with your own check is one function:
+## Extending Hooky
+
+Adding your own check is one function:
 
 ```python
 from .core import register, Finding

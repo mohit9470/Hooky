@@ -16,7 +16,7 @@ import time
 from datetime import datetime, timezone
 
 TOOL_NAME = "Hooky"
-TOOL_VERSION = "2.1.0"
+TOOL_VERSION = "2.3.0"
 CVE_DB_DATE = "2026-11"
 
 SEVERITY_ORDER = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3,

@@ -116,8 +116,35 @@ def confirm(prompt, default_yes=True):
 
 
 def ask_outdir():
-    return ask("  Report output directory [%s]: " % DEFAULT_OUTDIR,
+    return ask("  Folder for the reports (press Enter = ./%s): " % DEFAULT_OUTDIR,
                default=DEFAULT_OUTDIR)
+
+
+def ask_formats():
+    """Report-format picker shown in every interactive flow."""
+    print("""
+  Which report format do you want?
+    1) HTML   interactive dashboard - recommended, opens in any browser
+    2) PDF    formal document (needs reportlab:  pip install reportlab)
+    3) JSON   raw machine-readable data for other tools
+    4) CSV    spreadsheet - opens in Excel / LibreOffice
+    5) ALL    every format (HTML + PDF + JSON + CSV)
+  Press Enter = 5 (all formats)""")
+    c = ask("  Type 1-5 and press Enter [5]: ", default="5").strip().lower()
+    one = {"1": "html", "2": "pdf", "3": "json", "4": "csv"}
+    if c in one:
+        return one[c]
+    if c in ("5", "all"):
+        return "html,pdf,json,csv"
+    # also accept custom combos like '1,3' or 'html,csv'
+    names = []
+    for part in c.replace(" ", "").split(","):
+        if part in one:
+            names.append(one[part])
+        elif part in ("html", "pdf", "json", "csv"):
+            names.append(part)
+    names = list(dict.fromkeys(names))
+    return ",".join(names) if names else "html,pdf,json,csv"
 
 
 # --------------------------------------------------------------------------- #
@@ -144,13 +171,22 @@ COMMANDS
           usage: python3 hooky.py win [user@host]
           With user@host it pushes the read-only PowerShell agent over SSH,
           runs it and pulls the JSON result back. Without an argument a
-          short wizard lets you choose SSH or the webhook link instead.
+          short wizard lets you choose SSH, the webhook, or the one-click
+          audit link instead.
 
 {c}  hook{r}    Receive Windows results over HTTP - no SSH access needed.
           usage: python3 hooky.py hook [--hook-port N] [--hook-token TOK]
           Starts a webhook collector and prints a ready-made PowerShell
           command; run it on each Windows host and its results arrive here
           as JSON and can be audited with one confirmation.
+
+{c}  link{r}    One-click Windows audit - the easiest way of all.
+          usage: python3 hooky.py link [--hook-port N]
+          Generates a one-time web link. Send it to the Windows user: they
+          click it, click 'I allow', open the downloaded file and click Yes
+          on the Windows permission popup. The read-only audit then runs by
+          itself and your reports are generated automatically. No SSH, no
+          commands on the Windows side, and the link dies after one audit.
 
 {c}  get{r}     Audit a saved Windows result file (webhook or manual copy).
           usage: python3 hooky.py get FILE [FILE...] [-o DIR] [-f FORMATS]
@@ -578,6 +614,7 @@ def import_files(paths, outdir=None, title=WIN_TITLE, quick=False,
 
 def linux_flow():
     outdir = ask_outdir()
+    fmt = ask_formats()
     try:
         if os.geteuid() != 0:
             say("dim", "  Tip: run 'sudo python3 hooky.py scan' for full "
@@ -587,46 +624,51 @@ def linux_flow():
     if not confirm("  Start the Linux audit now?", default_yes=True):
         return 0
     args = build_arg_parser().parse_args(
-        ["--all", "--output-dir", outdir, "--title", LINUX_TITLE])
+        ["--all", "--output-dir", outdir, "--title", LINUX_TITLE,
+         "--formats", fmt])
     return run_audit(args)
 
 
 def ssh_flow():
-    spec = ask("  Windows target as user@host (e.g. administrator@winsrv01): ")
+    spec = ask("  Windows target - type: windows-username@windows-ip "
+               "(example: administrator@192.168.1.50): ")
     if not spec or "@" not in spec:
-        say("red", "  A target in the form user@host is required "
-                   "(example: administrator@winsrv01).")
+        say("red", "  A target in the form user@host is required - the user "
+                   "is the Windows login name, the host its IP or name "
+                   "(example: administrator@192.168.1.50).")
         return 2
     outdir = ask_outdir()
+    fmt = ask_formats()
     say("")
     say("b", "  Permission check - this will, using your SSH account on %s:" % spec)
     print("    1. copy the read-only Hooky agent (one PowerShell script)")
-    print("    2. run it there - it changes NOTHING on the system (~1 minute)")
+    print("    2. run it there - it changes NOTHING (usually 15-30 seconds)")
     print("    3. fetch the JSON result, then delete both files from the host")
     if not confirm("  Continue?", default_yes=True):
         say("dim", "  Cancelled - nothing was sent.")
         return 0
     args = build_arg_parser().parse_args(
         ["--windows", spec, "--no-local", "--output-dir", outdir,
-         "--title", WIN_TITLE])
+         "--title", WIN_TITLE, "--formats", fmt])
     return run_audit(args)
 
 
 def webhook_flow():
     say("cyn", "  The Windows host will SEND its audit result to this machine "
                "over HTTP - no SSH needed.")
-    port_s = ask("  Webhook port [8090]: ", default="8090")
+    port_s = ask("  Webhook port (press Enter = 8090): ", default="8090")
     try:
         port = int(port_s)
     except ValueError:
         port = 8090
-    token = ask("  Security token [press Enter to auto-generate]: ")
+    token = ask("  Security token (press Enter = generate one automatically): ")
     if not token:
         import secrets as _secrets
         token = "hooky-" + _secrets.token_hex(8)
         say("dim", "  generated token: %s" % token)
-    outdir = ask("  Save received results to [%s]: " % DEFAULT_HOOKDIR,
-                 default=DEFAULT_HOOKDIR)
+    outdir = ask("  Folder to save received results (press Enter = ./%s): "
+                 % DEFAULT_HOOKDIR, default=DEFAULT_HOOKDIR)
+    fmt = ask_formats()
     try:
         coll = remote.HookCollector(port, token, outdir)
     except RemoteError as exc:
@@ -647,7 +689,7 @@ def webhook_flow():
                 received.append(path)
                 say("grn", "\n  [%s] RESULT RECEIVED: %s" % (now_hms(), path))
                 if confirm("  Audit it now and generate the report?"):
-                    last_rc = import_files([path])
+                    last_rc = import_files([path], formats=fmt)
                     audited.add(path)
                     say("dim", "  Continuing to wait for more results... "
                                "(Ctrl+C to stop)")
@@ -659,7 +701,7 @@ def webhook_flow():
     if pending:
         say("b", "\n  %d result(s) were received but not yet audited." % len(pending))
         if confirm("  Audit them and generate the report(s) before exit?"):
-            last_rc = import_files(pending)
+            last_rc = import_files(pending, formats=fmt)
     elif not received:
         print("  No results were received - copy the printed command to the "
               "Windows host and try again.")
@@ -668,12 +710,91 @@ def webhook_flow():
 
 
 def get_flow():
-    raw = ask("  Result file, directory or wildcard "
-              "(e.g. %s/hook_WS01.json): " % DEFAULT_HOOKDIR)
+    raw = ask("  File to audit - type the path of a result .json "
+              "(example: %s/hooky-agent-output.json): " % DEFAULT_HOOKDIR)
     if not raw:
-        say("red", "  No file given.")
+        say("red", "  No file given - it needs the path of a .json result.")
         return 2
-    return import_files([raw])
+    fmt = ask_formats()
+    return import_files([raw], formats=fmt)
+
+
+def link_flow():
+    """One-click audit link: generate a link, the Windows user clicks it,
+    allows, and the result comes back with reports generated automatically."""
+    say("cyn", "  One-click audit link - the easiest Windows audit:")
+    print("    you get a web link  ->  you send it to the Windows user  ->")
+    print("    they click it and click 'I allow'  ->  they open the downloaded")
+    print("    file and click Yes  ->  the audit runs by itself and your")
+    print("    reports are generated automatically. The link then closes.")
+    port_s = ask("  Link port (press Enter = 8090): ", default="8090")
+    try:
+        port = int(port_s)
+    except ValueError:
+        port = 8090
+    ttl_s = ask("  How many minutes should the link stay valid? "
+                "(press Enter = 30): ", default="30")
+    try:
+        ttl_min = max(1, min(1440, int(ttl_s)))
+    except ValueError:
+        ttl_min = 30
+    print("  Full audit  = all %d Windows checks (~15-30 seconds)." % n_win_tests())
+    print("  Quick audit = the most important checks (~10 seconds).")
+    quick = confirm("  Use the QUICK audit?", default_yes=False)
+    outdir = ask_outdir()
+    fmt = ask_formats()
+    import socket as _socket
+    label = "%s (%s)" % (_socket.gethostname(), remote.controller_ip())
+    reg = remote.LinkRegistry(ttl_minutes=ttl_min, quick=quick, label=label)
+
+    def _deliver(path):
+        say("grn", "\n  [%s] RESULT ARRIVED - generating your reports..."
+            % now_hms())
+        return import_files([path], outdir=outdir, formats=fmt)
+
+    try:
+        coll = remote.HookCollector(port, "", outdir, link=reg,
+                                    on_result=_deliver)
+    except RemoteError as exc:
+        say("red", "  [!]  %s" % exc)
+        return 2
+    try:
+        coll.start()
+    except OSError as exc:
+        say("red", "  [!]  Cannot start the link server on port %d: %s"
+            % (port, exc))
+        return 2
+    remote._print_link_banner(port, reg, outdir, ip=coll.ip)
+    received = None
+    try:
+        while True:
+            for _ts, text in reg.poll_events():
+                say("cyn", "  [%s] %s" % (now_hms(), text))
+            path = coll.wait_for_result(timeout=0.5)
+            if path:
+                received = path
+                for _ts, text in reg.poll_events():
+                    say("cyn", "  [%s] %s" % (now_hms(), text))
+                break
+            if reg.state == "denied":
+                break
+    except KeyboardInterrupt:
+        print()
+    finally:
+        coll.stop()
+    if received:
+        say("grn", "  [%s] Audit link closed automatically - the result "
+                   "arrived and the reports are saved above." % now_hms())
+        return 0
+    if reg.state == "denied":
+        say("yel", "  The user DECLINED the audit - nothing was collected.")
+        say("dim", "  Generate a new link (menu 2 -> 3) if you want to retry.")
+        return 0
+    say("yel", "  No result arrived before you stopped waiting "
+               "(link status: %s)." % reg.state)
+    say("dim", "  Run the menu again and pick the one-click link to create "
+               "a fresh link if needed.")
+    return 0
 
 
 def _windows_submenu():
@@ -681,16 +802,19 @@ def _windows_submenu():
         print("""
   How do you want to connect to the Windows system?
     1) Connect now over SSH      (I have SSH access to the Windows host)
-    2) Generate a webhook link   (Windows sends the result to me - no SSH)
+    2) Webhook + agent command   (Windows sends the result to me - no SSH)
+    3) One-click audit link      (I send a link; they click Allow; done)
     b) Back""")
-        c = ask("  Choose [1-2, b]: ", default="b")
+        c = ask("  Choose [1-3, b]: ", default="b")
         if c in ("b", "B", ""):
             return 0
         if c == "1":
             return ssh_flow()
         if c == "2":
             return webhook_flow()
-        say("red", "  Please answer 1, 2 or b.")
+        if c == "3":
+            return link_flow()
+        say("red", "  Please answer 1, 2, 3 or b.")
 
 
 MENU = """  1) Audit this Linux system
@@ -741,7 +865,7 @@ def run_menu():
 #  Entry point: simple commands first, then classic flags
 # --------------------------------------------------------------------------- #
 
-SIMPLE = {"scan", "linux", "win", "windows", "hook", "get", "import",
+SIMPLE = {"scan", "linux", "win", "windows", "hook", "link", "get", "import",
           "agent", "checks", "list", "menu", "help"}
 
 
@@ -791,6 +915,8 @@ def main(argv=None):
                 return 2
         elif cmd == "hook":
             argv = ["--hook"] + rest
+        elif cmd == "link":
+            return link_flow()
         elif cmd in ("get", "import"):
             g = _get_parser().parse_args(rest)
             return import_files(
@@ -815,7 +941,7 @@ def main(argv=None):
         # unknown bare word -> explain instead of argparse noise
         if argv and not argv[0].startswith("-"):
             say("red", "Unknown command %r. Simple commands: scan | win | "
-                       "hook | get | agent | checks | menu\n"
+                       "hook | link | get | agent | checks | menu\n"
                        "For every command with usage examples:  "
                        "python3 hooky.py help  (or -help)" % argv[0])
             return 2
